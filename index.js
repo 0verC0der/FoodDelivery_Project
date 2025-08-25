@@ -6,12 +6,13 @@ const authRoutes = require('./routes/auth');
 const mainRoutes = require('./routes/main');
 const registerRoutes = require('./routes/register'); // Підключення маршруту реєстрації
 const cartRoutes = require('./routes/cart'); // Підключення маршруту кошика
+require('dotenv').config();
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.set('view engine', 'ejs');
+app.set('view engine', 'ejs'); 
 app.set('views', path.join(__dirname, 'views'));
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -32,12 +33,14 @@ app.use(session({
 app.get('/', (req, res) => {
     res.render('mainPage');
 });
+app.get('/info', (req, res) => {
+    res.render('info');
+});
 app.use(mainRoutes);
 app.use(authRoutes);
 app.use(registerRoutes); 
 app.use(cartRoutes);
 
-const PORT = 3000;
-app.listen(PORT, () => {
-    console.log(`Сервер запущено на http://localhost:${PORT}`);
-});
+app.listen(process.env.PORT, () => {
+    console.log(`Сервер запущено на http://localhost:${process.env.PORT}`);
+}); 

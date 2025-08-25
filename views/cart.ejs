@@ -52,7 +52,171 @@
         </div>
     </header>
     <main>
-        Корзинка
+        <div id="message" class="hidden"></div>
+        <section class="cart">
+            <h1>Ваша корзинка <%= user.name %></h1>
+            <div class="cart-items">
+                <% if (cartItems.length > 0) { %>
+                    <% cartItems.forEach(item => { %>
+                        <div class="cart-item">
+                            <img src="<%= item.mealImageUrl %>" alt="<%= item.mealName %>" class="item-image">
+                            <div class="item-details">
+                                <h2><%= item.mealName %></h2>
+                                <p>Ціна: <%= item.mealPrice %> грн</p>
+                                <div class="quantity-controls">
+                                    <button class="decrease-quantity" data-id="<%= item.cartItemId %>">-</button>
+                                    <span class="quantity"><%= item.quantity %></span>
+                                    <button class="increase-quantity" data-id="<%= item.cartItemId %>">+</button>
+                                </div>
+                                <button class="remove-item" data-id="<%= item.cartItemId %>">Видалити</button>
+                            </div>
+                        </div>
+                    <% }); %>
+                <% } else { %>
+                    <div class="cart-summary">
+                        <h2>
+                            Ваша корзинка порожня.
+                        </h2>
+                    </div>
+                <% } %>
+            </div>
+            <% if (cartItems.length > 0) { %>
+                <div class="cart-summary">
+                    <h2>Загальна сума: 
+                        <%= cartItems.reduce((total, item) => total + item.mealPrice * item.quantity, 0) %> грн
+                    </h2>
+                    <button class="checkout-button">Оформити замовлення</button>
+                </div>
+            <% } %>
+        </section>
     </main>
+
+    <script>
+        function showMessage(text) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.classList.remove('hidden');
+            messageDiv.classList.add('show');
+        
+            setTimeout(() => {
+                messageDiv.classList.remove('show');
+                messageDiv.classList.add('hidden');
+            }, 2000); // Прибрати через 2 секунди
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            const updateQuantity = async (cartItemId, delta, quantityElement, pricePerItem) => {
+                try {
+                    const response = await fetch('/cart/change', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ cartItemId, delta })
+                    });
+        
+                    if (response.ok) {
+                        // Оновлюємо кількість без перезавантаження
+                        let currentQuantity = parseInt(quantityElement.textContent);
+                        currentQuantity += delta;
+                        if (currentQuantity < 1) currentQuantity = 1;
+                        quantityElement.textContent = currentQuantity;
+        
+                        // Оновлюємо загальну суму
+                        recalculateTotal();
+                        
+                        if (currentQuantity > 1) {
+                            showMessage('✅ Кількість оновлено!');
+                        } 
+                    } 
+                    else {
+                        showMessage('❌ Не вдалося оновити кількість');
+                    }
+                } catch (error) {
+                    console.error('Помилка оновлення:', error);
+                    showMessage('❌ Помилка сервера');
+                }
+            };
+        
+            const recalculateTotal = () => {
+                let total = 0;
+                document.querySelectorAll('.cart-item').forEach(item => {
+                    const price = parseFloat(item.querySelector('h2 + p').textContent.replace('Ціна: ', '').replace(' грн', ''));
+                    const quantity = parseInt(item.querySelector('.quantity').textContent);
+                    total += price * quantity;
+                });
+        
+                const totalElement = document.querySelector('.cart-summary h2');
+                if (totalElement) {
+                    totalElement.textContent = `Загальна сума: ${total} грн`;
+                } 
+                if (total === 0) {
+                    totalElement.textContent = `Ваша корзинка порожня.`;
+                    document.querySelector('.checkout-button').style.display = 'none';
+                }
+            };
+        
+            // Збільшення кількості
+            document.querySelectorAll('.increase-quantity').forEach(button => {
+                button.addEventListener('click', () => {
+                    const cartItemId = button.getAttribute('data-id');
+                    const quantityElement = button.parentElement.querySelector('.quantity');
+                    const pricePerItem = parseFloat(button.closest('.cart-item').querySelector('h2 + p').textContent.replace('Ціна: ', '').replace(' грн', ''));
+                    updateQuantity(cartItemId, 1, quantityElement, pricePerItem);
+                });
+            });
+        
+            // Зменшення кількості
+            document.querySelectorAll('.decrease-quantity').forEach(button => {
+                button.addEventListener('click', () => {
+                    const cartItemId = button.getAttribute('data-id');
+                    const quantityElement = button.parentElement.querySelector('.quantity');
+                    const pricePerItem = parseFloat(button.closest('.cart-item').querySelector('h2 + p').textContent.replace('Ціна: ', '').replace(' грн', ''));
+                    updateQuantity(cartItemId, -1, quantityElement, pricePerItem);
+                });
+            });
+            
+            // Видалення товару
+            document.querySelectorAll('.remove-item').forEach(button => {
+                button.addEventListener('click', async () => {
+                    const cartItemId = button.getAttribute('data-id');
+                    try {
+                        const response = await fetch('/cart/delete', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ cartItemId })
+                        });
+        
+                        if (response.ok) {
+                            button.closest('.cart-item').remove();
+                            recalculateTotal();
+                            showMessage('🗑️ Товар видалено');
+                        } else {
+                            showMessage('❌ Не вдалося видалити товар');
+                        }
+                    } catch (error) {
+                        console.error('Помилка видалення:', error);
+                        showMessage('❌ Помилка сервера');
+                    }
+                });
+            });
+        });
+        
+        // Функція для сповіщення
+        function showMessage(text) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.classList.remove('hidden');
+            messageDiv.classList.add('show');
+        
+            setTimeout(() => {
+                messageDiv.classList.remove('show');
+                messageDiv.classList.add('hidden');
+            }, 2000);
+        }        
+</script>
+        
 </body>
 </html>

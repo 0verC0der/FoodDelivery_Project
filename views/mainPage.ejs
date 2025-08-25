@@ -15,7 +15,6 @@
             const priceFilter = document.querySelector('input[type="range"]');
             const priceValue = document.getElementById('price-value');
         
-            // Функція для завантаження страв
             const loadDishes = (maxPrice) => {
                 fetch(`http://localhost:3000/dishes?maxPrice=${maxPrice}`)
                     .then(response => response.json())
@@ -23,37 +22,72 @@
                         menuContainer.innerHTML = ''; // Очищення меню
                         dishes.forEach(dish => {
                             const dishElement = document.createElement('div');
-                            const dishImageContainer = document.createElement('div');
-                            const dishDescriptionContainer = document.createElement('div');
-        
-                            dishImageContainer.classList.add('dish-image-container');
-                            dishDescriptionContainer.classList.add('dish-description-container');
                             dishElement.classList.add('menu-item');
-                            
-                            dishImageContainer.innerHTML = `<img src="${dish.image_url}" alt="${dish.name}">
-                            `;
-                            dishDescriptionContainer.innerHTML =  `
-                                <h3>${dish.name}</h3>
-                                <p>Ціна: ${dish.price} грн</p>
-                            `;
+                            dishElement.setAttribute('data-id', dish.meal_id);
         
-                            dishElement.appendChild(dishImageContainer);
-                            dishElement.appendChild(dishDescriptionContainer);
+                            dishElement.innerHTML = `
+                                <div class="dish-image-container">
+                                    <img src="${dish.image_url}" alt="${dish.name}">
+                                </div>
+                                <div class="dish-description-container">
+                                    <h3>${dish.name}</h3>
+                                    <p>Ціна: ${dish.price} грн</p>
+                                </div>
+                            `;
                             menuContainer.appendChild(dishElement);
                         });
                     })
                     .catch(error => console.error('Помилка завантаження страв:', error));
             };
         
-            // Завантаження страв при завантаженні сторінки
             loadDishes(priceFilter.value);
         
-            // Завантаження страв при зміні фільтру ціни
             priceFilter.addEventListener('input', () => {
                 loadDishes(priceFilter.value);
                 priceValue.textContent = priceFilter.value;
             });
+        
+            // 👉 Делегування подій на контейнер
+            menuContainer.addEventListener('click', async (event) => {
+                const clickedItem = event.target.closest('.menu-item');
+        
+                if (clickedItem) {
+                    const mealId = clickedItem.getAttribute('data-id');
+        
+                    try {
+                        const response = await fetch('/cart/add', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ mealId: mealId, quantity: 1 })
+                        });
+        
+                        if (response.ok) {
+                            showMessage('✅ Страву додано в корзину!');
+                        } else {
+                            showMessage('❌ Помилка додавання');
+                        }
+                    } catch (error) {
+                        console.error('Помилка додавання:', error);
+                        showMessage('❌ Помилка сервера');
+                    }
+                }
+            });
         });
+        
+        // Функція для сповіщення
+        function showMessage(text) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.classList.remove('hidden');
+            messageDiv.classList.add('show');
+        
+            setTimeout(() => {
+                messageDiv.classList.remove('show');
+                messageDiv.classList.add('hidden');
+            }, 2000);
+        }
     </script>
     <header>
         <div class="logo">
@@ -105,6 +139,8 @@
             <input type="range" min="1" max="500" value="80">
         </div>   
     </div>
+    <div id="message" class="hidden"></div>
     <div class="menu"></div>
+
 </body>
 </html>
